@@ -25,6 +25,15 @@ import * as Circle from './circle_schema_generated';
 import * as Types from './CircleType';
 
 /**
+ * This is enum for describe json edit action.
+ */
+const enum jsonAction{
+  INSERT = "insert",
+  REPLACE = "replace",
+  REMOVE = "remove",
+}
+
+/**
  * Custom Editor Document necessary for vscode extension API
  * This class contains model object as _model variable
  * and manages its state when modification is occured.
@@ -33,6 +42,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
   private readonly _uri: vscode.Uri;
   private _model: Circle.ModelT;
   private readonly packetSize = 1024 * 1024 * 1024;
+  private modelBufferArray: any[] = [];
 
   public get uri(): vscode.Uri {
     return this._uri;
@@ -367,6 +377,308 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     }
     let responseJson = {command: 'loadJson', data: jsonModel};
     this._onDidChangeContent.fire(responseJson);
+  }
+
+  setBufferArray() {
+    this.modelBufferArray = [];
+    for(let i=0; i<this._model.buffers.length; i++){
+      this.modelBufferArray.push([]);
+      let buffer = this._model.buffers[i].data;
+      let tmpIdx = 0;
+      while(buffer.length>0){
+        this.modelBufferArray[i].push(buffer.splice(tmpIdx, tmpIdx+300000));
+        tmpIdx+=300000;
+      }
+    }
+    this.loadModelIndexInfo();
+  }
+  
+  loadModelIndexInfo() {
+    this._onDidChangeContent.fire({command: 'modelIndexInfo',
+    data: {subgraphLen: this._model.subgraphs.length, bufferLen: this._model.buffers.length}});
+  }
+
+  loadJsonModelOptions() {
+    let optionData:string = '';
+    Object.entries(this._model).forEach(e => {
+      if(e[0]==='subgraphs'||e[0]==='buffers'){return;}
+      optionData+=`'${e[0]}':`;
+      optionData+=JSON.stringify(e[1], (_, v) => {
+        return typeof v === 'bigint' ? v.toString() : v;
+      })+',\n';
+    });
+    optionData = optionData.slice(0,-2);
+    this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'options', data: optionData});
+  }
+
+  loadJsonModelSubgraphs() {
+    let subgraphData:string[] = [];
+    Object.entries(this._model.subgraphs).forEach(e=>{
+      subgraphData.push(JSON.stringify(e[1]));
+    });
+    this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'subgraphs', data: subgraphData});
+  }
+
+  loadJsonModelBuffers(message:any){
+    let bufferIdx:number = message.bufferIdx;
+    let pageIdx:number = message.pageIdx-1; //index starts from 0
+    let value = this.modelBufferArray[bufferIdx][pageIdx];
+    if (value === undefined) {
+      Balloon.error('buffer index out of range.', false);
+    }
+    const data = JSON.stringify(value).replace('[', '').replace(']', '').trim()
+    this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'buffers', data});
+  }
+
+  trimString(str:string): string {
+    let strArray = str.match(/\[[0-9,\s]*\]/gi);
+    if (strArray) {
+      strArray.forEach(text => {
+        let replaced = text.replace(/,\s*/gi, ', ').replace(/\[\s*/gi, '[').replace(/\s*\]/gi, ']');
+        str = str.replace(text, replaced);
+      });
+    }
+    return str;
+  }
+
+  editJsonModelOptions(inputModelOptions: string) {
+    const oldModelData = this.modelData;
+    try{
+      let newModelOptions = JSON.parse(inputModelOptions);
+
+      //version
+      this._model.version = newModelOptions.version;
+
+      //operatorCodes
+      this._model.operatorCodes = newModelOptions.operatorCodes.map((data: Circle.OperatorCodeT) => {
+        return Object.setPrototypeOf(data, Circle.OperatorCodeT.prototype);
+      });
+
+      // description
+      this._model.description = newModelOptions.description;
+
+      // metadataBuffer
+      this._model.metadataBuffer = newModelOptions.metadataBuffer;
+
+      // metadata
+      this._model.metadata = newModelOptions.metadata.map((data: Circle.MetadataT) => {
+        return Object.setPrototypeOf(data, Circle.MetadataT.prototype);
+      });
+
+      // signatureDefs
+      this._model.signatureDefs = newModelOptions.signatureDefs.map((data: Circle.SignatureDefT) => {
+        data.inputs = data.inputs.map((tensor: Circle.TensorMapT) => {
+          return Object.setPrototypeOf(tensor, Circle.TensorMapT.prototype);
+        });
+        data.outputs = data.outputs.map((tensor: Circle.TensorMapT) => {
+          return Object.setPrototypeOf(tensor, Circle.TensorMapT.prototype);
+        });
+        return Object.setPrototypeOf(data, Circle.SignatureDefT.prototype);
+      });
+
+      const newModelData = this.modelData;
+      this.notifyEdit(oldModelData, newModelData);
+      
+    } catch (e) {
+      this._model = this.loadModel(oldModelData);
+      Balloon.error('invalid model', false); 
+    }
+  }
+
+  /**
+   * This method is used for insert, replace, remove subgraph data.
+   * @param index An element at this index will be changed.
+   * @param action jsonAction.INSERT, jsonAction.REPLACE, jsonAction.REMOVE
+   * @param subgraphString string for new subgraph data
+   */
+  editJsonModelSubgraphs(message: any) {
+    const oldModelData = this.modelData;
+    try {
+      const { index, action, subgraphString } = message;
+      let subgraphData;
+      let subgraphObject;
+      if(subgraphString && action !== jsonAction.REMOVE) {
+        subgraphData = JSON.parse(subgraphString);
+        // tensors
+        subgraphData.tensors = subgraphData.tensors.map((tensor: Circle.TensorT) => {
+          if (tensor.quantization) {
+            if (tensor.quantization.details) {
+              tensor.quantization.details = Object.setPrototypeOf(tensor.quantization?.details, Circle.CustomQuantizationT.prototype);
+            }
+            tensor.quantization.zeroPoint = tensor.quantization.zeroPoint.map(value => {
+              return BigInt(value);
+            });
+            tensor.quantization = Object.setPrototypeOf(
+                tensor.quantization, Circle.QuantizationParametersT.prototype);
+          }
+          // sparsity parameters
+          if (tensor.sparsity) {
+            if (tensor.sparsity.dimMetadata) {
+              tensor.sparsity.dimMetadata =
+                  tensor.sparsity.dimMetadata.map((dimMeta: Circle.DimensionMetadataT) => {
+                    if (dimMeta.arraySegmentsType && dimMeta.arraySegments) {
+                      const sparseVectorClass = Object.entries(Types.SparseVector).find(element => {
+                        return dimMeta.arraySegmentsType === parseInt(element[0]);
+                      });
+                      if (sparseVectorClass && sparseVectorClass[1]) {
+                        dimMeta.arraySegments = Object.setPrototypeOf(
+                            dimMeta.arraySegments, sparseVectorClass[1].prototype);
+                      }
+                    } else {
+                      dimMeta.arraySegments = null;
+                    }
+                    if (dimMeta.arrayIndicesType && dimMeta.arrayIndices) {
+                      const sparseVectorClass = Object.entries(Types.SparseVector).find(element => {
+                        return dimMeta.arrayIndicesType === parseInt(element[0]);
+                      });
+                      if (sparseVectorClass && sparseVectorClass[1]) {
+                        dimMeta.arrayIndices = Object.setPrototypeOf(
+                            dimMeta.arrayIndices, sparseVectorClass[1].prototype);
+                      }
+                    } else {
+                      dimMeta.arrayIndices = null;
+                    }
+                    return Object.setPrototypeOf(dimMeta, Circle.DimensionMetadataT.prototype);
+                  });  // end map dimMeta
+
+              if (!tensor.sparsity.traversalOrder || !tensor.sparsity.traversalOrder.length) {
+                tensor.sparsity.traversalOrder = [];
+              }
+              if (!tensor.sparsity.blockMap || !tensor.sparsity.blockMap.length) {
+                tensor.sparsity.blockMap = [];
+              }
+              Object.setPrototypeOf(
+                  tensor.sparsity.dimMetadata, Circle.DimensionMetadataT.prototype);
+            }  // end if tensor.sparsity.dimMetadata
+
+            tensor.sparsity =
+                Object.setPrototypeOf(tensor.sparsity, Circle.SparsityParametersT.prototype);
+          }  // end if tensor.sparsity
+
+          return Object.setPrototypeOf(tensor, Circle.TensorT.prototype);
+        });
+
+        // operators
+        subgraphData.operators = subgraphData.operators.map((operator: Circle.OperatorT) => {
+          if (this._model.operatorCodes[operator.opcodeIndex].deprecatedBuiltinCode === 32) {
+            // case1 : custom operator
+            if (operator.builtinOptionsType || operator.builtinOptions) {
+              throw new Error;
+            }
+          } else {
+            // case2 : builtin operator
+            const optionsClass = Object.entries(Types.NumberToBuiltinOptions).find(element => {
+              return operator.builtinOptionsType === parseInt(element[0]);
+            });
+            if (optionsClass && optionsClass[1] && operator.builtinOptions) {
+              let tmpBuiltinOptions = new optionsClass[1];
+              Object.keys(operator.builtinOptions).forEach((element) => {
+                if (!(element in tmpBuiltinOptions)) {
+                  throw new Error;
+                }
+              });
+              Object.keys(tmpBuiltinOptions).forEach((element) => {
+                if (operator.builtinOptions && !(element in operator.builtinOptions)) {
+                  throw new Error;
+                }
+              });
+              operator.builtinOptions = Object.setPrototypeOf(
+                  operator.builtinOptions === null ? {} : operator.builtinOptions,
+                  optionsClass[1].prototype);
+            } else {
+              operator.builtinOptions = null;
+            }
+          }
+          return Object.setPrototypeOf(operator, Circle.OperatorT.prototype);
+        });
+        subgraphObject = Object.setPrototypeOf(subgraphData, Circle.SubGraphT.prototype);
+      }
+
+      switch (action) {
+        case jsonAction.INSERT:
+          if (subgraphObject && index >= 0 && index < this._model.buffers.length) {
+            this._model.subgraphs.splice(index, 0, subgraphObject);
+          } else {
+            throw new Error;
+          }
+          break;
+        case jsonAction.REPLACE:
+          if (subgraphObject && index >= 0 && index < this._model.buffers.length) {
+            this._model.subgraphs[index] = subgraphObject;
+          } else {
+            throw new Error;
+          }
+          break;
+        case jsonAction.REMOVE:
+          if (index >= 0 && index < this._model.buffers.length) {
+            this._model.subgraphs.splice(index, 1);
+          } else {
+            throw new Error;
+          }
+          break;
+        default:
+          throw new Error;
+      }
+      const newModelData = this.modelData;
+      this.notifyEdit(oldModelData, newModelData);
+    } catch (e) {
+      this._model = this.loadModel(oldModelData);
+      Balloon.error('invalid request', false);
+    }
+  }
+
+  //TODO: divide 2 cases
+  //      1. temporary edit, which is only reflected to modelBufferArray
+  //      2. apply edits to modelT
+  editJsonModelBuffers(messageData: any) {
+    const oldModelData = this.modelData;
+    try{
+      let bufferIdx:number = messageData.bufferIdx;
+      switch (messageData.case) {
+        case jsonAction.INSERT: // add
+          if (bufferIdx < 0 || bufferIdx > this._model.buffers.length) {
+            // wrong buffer index case
+            throw new Error;
+          }
+          this._model.buffers.splice(bufferIdx, 0, new Circle.BufferT([]));
+          this.modelBufferArray.splice(bufferIdx, 0, [[]]);
+          break;
+        case jsonAction.REPLACE: // temporaryEdit
+          let pageIdx = messageData.pageIdx - 1;
+          if (this.modelBufferArray[bufferIdx][pageIdx] === undefined) {
+            // wrong buffer index case
+            throw new Error;
+          }
+          let inputData: number[] = JSON.parse(messageData.inputData);
+
+          let start = 0;
+          for (let i = 0; i < pageIdx; i++){
+            start += this.modelBufferArray[bufferIdx][i].length;
+          }
+
+          let len = this.modelBufferArray[bufferIdx][pageIdx].length;
+
+          this.modelBufferArray[bufferIdx][pageIdx] = inputData;
+          this._model.buffers[bufferIdx].data.splice(start, len, this.modelBufferArray[bufferIdx][pageIdx]);
+          break;
+        case jsonAction.REMOVE: // delete
+          if (this._model.buffers[bufferIdx] === undefined) {
+            // wrong buffer index case
+            throw new Error;
+          }
+          this._model.buffers.splice(bufferIdx, 1);
+          this.modelBufferArray.splice(bufferIdx, 1);
+          break;
+        default:
+          break;
+      }
+    } catch (e) {
+      this._model = this.loadModel(oldModelData);
+      Balloon.error('invalid request', false);
+      return;
+    }
+    const newModelData = this.modelData;
+    this.notifyEdit(oldModelData, newModelData);
   }
 
   /**
