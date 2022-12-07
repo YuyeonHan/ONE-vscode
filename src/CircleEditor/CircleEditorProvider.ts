@@ -191,6 +191,7 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
           }
         }
         return;
+      //TODO: divide message - permanent edit and temporary edit
       case MessageDefs.updateJson:
         if(message.type === 'entireModel'){
           document.editJsonModel(message.data);
@@ -212,6 +213,7 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
           return;
         }
       case 'applyJsonToModel':
+        document.applyBufferArray();
         return;
       case MessageDefs.getCustomOpAttrT:
         document.setCustomOpAttrT(message);
