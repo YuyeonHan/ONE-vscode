@@ -403,7 +403,14 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
   
   loadModelIndexInfo() {
     this._onDidChangeContent.fire({command: 'modelIndexInfo',
-    data: {subgraphLen: this._model.subgraphs.length, bufferLen: this._model.buffers.length}});
+      data: {
+        subgraphLen: this._model.subgraphs.length,
+        bufferLen: this.modelBufferArray.length,
+        bufferPageInfo: this.modelBufferArray.map(bufferArr => {
+          return bufferArr.length;
+        })
+      }
+    });
   }
 
   loadJsonModelOptions() {
@@ -424,7 +431,12 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     Object.entries(this._model.subgraphs).forEach(e=>{
       subgraphData.push(JSON.stringify(e[1]));
     });
-    this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'subgraphs', data: subgraphData});
+    this._onDidChangeContent.fire({
+      command: 'loadJsonMulti',
+      type: 'subgraphs',
+      totalSubgraph: subgraphData.length,
+      data: subgraphData
+    });
   }
 
   loadJsonModelBuffers(message:any){
@@ -436,7 +448,15 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       return;
     }
     const data = JSON.stringify(value).replace('[', '').replace(']', '').trim()
-    this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'buffers', data});
+    this._onDidChangeContent.fire({
+      command: 'loadJsonMulti',
+      type: 'buffers',
+      bufferIdx: message.bufferIdx,
+      pageIdx: message.pageIdx,
+      totalBuffer: this.modelBufferArray.length,
+      totalPage: this.modelBufferArray[message.bufferIdx].length,
+      data
+    });
   }
 
   trimString(str:string): string {
@@ -643,7 +663,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     const oldModelData = this.modelData;
     try{
       let bufferIdx:number = messageData.bufferIdx;
-      switch (messageData.case) {
+      switch (messageData.action) {
         case jsonAction.INSERT: // add
           if (bufferIdx < 0 || bufferIdx > this._model.buffers.length) {
             // wrong buffer index case
