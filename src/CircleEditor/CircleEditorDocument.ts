@@ -433,6 +433,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     let value = this.modelBufferArray[bufferIdx][pageIdx];
     if (value === undefined) {
       Balloon.error('buffer index out of range.', false);
+      return;
     }
     const data = JSON.stringify(value).replace('[', '').replace(']', '').trim()
     this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'buffers', data});

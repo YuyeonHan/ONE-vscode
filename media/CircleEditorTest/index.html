@@ -31,6 +31,11 @@
   <script>
     const vscode = acquireVsCodeApi();
     const loadModelBtn = document.querySelector("#LoadModelBtn");
+
+    vscode.postMessage({
+      command: "openJsonEditor",
+    });
+
     loadModelBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
@@ -58,7 +63,7 @@
     loadJsonBufferBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
-        command: "loadJson", type: 'partOfModel', part: 'buffers', bufferIdx:284, pageIdx:2
+        command: "loadJson", type: 'partOfModel', part: 'buffers', bufferIdx:2, pageIdx:1
       });
     });
 
