@@ -400,6 +400,23 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     }
     this.loadModelIndexInfo();
   }
+
+  applyBufferArray() {
+    const oldModelData = this.modelData;
+    try{
+      this.modelBufferArray.map((bufferArr, idx) => {
+        this._model.buffers[idx].data = bufferArr.reduce((acc: number[], cur: number[]) => { return [...acc, ...cur] });
+      });
+      
+      const newModelData = this.modelData;
+      this.notifyEdit(oldModelData, newModelData);
+      this.setBufferArray();
+    } catch (e) {
+      this._model = this.loadModel(oldModelData);
+      Balloon.error('invalid model', false); 
+    }
+
+  }
   
   loadModelIndexInfo() {
     this._onDidChangeContent.fire({command: 'modelIndexInfo',
