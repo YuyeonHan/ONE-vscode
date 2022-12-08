@@ -19,8 +19,6 @@ import * as vscode from 'vscode';
 import {Balloon} from '../Utils/Balloon';
 
 import {disposeAll} from '../Utils/external/Dispose';
-import {getNonce} from '../Utils/external/Nonce';
-import {getUri} from '../Utils/external/Uri';
 
 import {CircleEditorDocument} from './CircleEditorDocument';
 
@@ -53,7 +51,13 @@ export enum MessageDefs {
   loadJson = 'loadJson',
   updateJson = 'updateJson',
   getCustomOpAttrT = 'getCustomOpAttrT',
-  requestEncodingData = 'requestEncodingData'
+  requestEncodingData = 'requestEncodingData',
+  openJsonEditor = 'openJsonEditor',
+  applyJsonToModel = 'applyJsonToModel',
+  //TODO: check if message.type can be defined here
+  entireModel = 'entireModel',
+  partOfModel = 'partOfModel',
+
 }
 
 /**
@@ -169,14 +173,14 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
       case MessageDefs.edit:
         document.makeEdit(message);
         return;
-      case 'openJsonEditor':
+      case MessageDefs.openJsonEditor:
         document.setBufferArray();
         return;
       case MessageDefs.loadJson:
-        if(message.type === 'entireModel') {
+        if(message.type === MessageDefs.entireModel) {
           document.loadJson();
           return;
-        }else if(message.type === 'partOfModel') {
+        }else if(message.type === MessageDefs.partOfModel) {
           if(message.part === 'options') {
             document.loadJsonModelOptions();
             return;
@@ -193,10 +197,10 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         return;
       //TODO: divide message - permanent edit and temporary edit
       case MessageDefs.updateJson:
-        if(message.type === 'entireModel'){
+        if(message.type === MessageDefs.entireModel){
           document.editJsonModel(message.data);
           return;
-        }else if(message.type === 'partOfModel'){
+        }else if(message.type === MessageDefs.partOfModel){
           if(message.part === 'options') {
             document.editJsonModelOptions(message.data);
             return;
@@ -212,7 +216,7 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         }else{
           return;
         }
-      case 'applyJsonToModel':
+      case MessageDefs.applyJsonToModel:
         document.applyBufferArray();
         return;
       case MessageDefs.getCustomOpAttrT:
