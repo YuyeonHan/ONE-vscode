@@ -176,7 +176,9 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         return;
       case MessageDefs.openJsonEditor:
         document.setBufferArray();
+        document.loadJsonModelOptions();
         return;
+      //TODO: remove this message if it is not necessary
       case MessageDefs.loadModelIndexInfo:
         document.loadModelIndexInfo();
         return;
