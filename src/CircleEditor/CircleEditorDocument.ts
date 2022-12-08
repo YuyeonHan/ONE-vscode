@@ -398,7 +398,6 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
         tmpIdx+=300000;
       }
     }
-    this.loadModelIndexInfo();
   }
 
   applyBufferArray() {
