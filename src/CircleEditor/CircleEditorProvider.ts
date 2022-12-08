@@ -53,6 +53,7 @@ export enum MessageDefs {
   getCustomOpAttrT = 'getCustomOpAttrT',
   requestEncodingData = 'requestEncodingData',
   openJsonEditor = 'openJsonEditor',
+  loadModelIndexInfo = 'loadModelIndexInfo',
   applyJsonToModel = 'applyJsonToModel',
   //TODO: check if message.type can be defined here
   entireModel = 'entireModel',
@@ -175,6 +176,9 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         return;
       case MessageDefs.openJsonEditor:
         document.setBufferArray();
+        return;
+      case MessageDefs.loadModelIndexInfo:
+        document.loadModelIndexInfo();
         return;
       case MessageDefs.loadJson:
         if(message.type === MessageDefs.entireModel) {
