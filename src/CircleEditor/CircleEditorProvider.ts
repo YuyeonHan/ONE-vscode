@@ -181,7 +181,7 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
             document.loadJsonModelOptions();
             return;
           }else if(message.part === 'subgraphs') {
-            document.loadJsonModelSubgraphs();
+            document.loadJsonModelSubgraphs(message);
             return;
           }else if(message.part === 'buffers') {
             document.loadJsonModelBuffers(message);

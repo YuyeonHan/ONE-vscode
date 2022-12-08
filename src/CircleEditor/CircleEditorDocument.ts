@@ -443,23 +443,21 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'options', data: optionData});
   }
 
-  loadJsonModelSubgraphs() {
-    let subgraphData:string[] = [];
-    Object.entries(this._model.subgraphs).forEach(e=>{
-      subgraphData.push(JSON.stringify(e[1]));
-    });
+  loadJsonModelSubgraphs(message: any) {
+    const { currentIdx } = message;
     this._onDidChangeContent.fire({
       command: 'loadJsonMulti',
       type: 'subgraphs',
-      totalSubgraph: subgraphData.length,
-      data: subgraphData
+      totalSubgraph: this._model.subgraphs.length,
+      currentIdx,
+      data: JSON.stringify(this._model.subgraphs[currentIdx]),
     });
   }
 
   loadJsonModelBuffers(message:any){
-    let bufferIdx:number = message.bufferIdx;
+    let currentIdx:number = message.currentIdx;
     let pageIdx:number = message.pageIdx-1; //index starts from 0
-    let value = this.modelBufferArray[bufferIdx][pageIdx];
+    let value = this.modelBufferArray[currentIdx][pageIdx];
     if (value === undefined) {
       Balloon.error('buffer index out of range.', false);
       return;
@@ -468,10 +466,10 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     this._onDidChangeContent.fire({
       command: 'loadJsonMulti',
       type: 'buffers',
-      bufferIdx: message.bufferIdx,
+      currentIdx: message.currentIdx,
       pageIdx: message.pageIdx,
       totalBuffer: this.modelBufferArray.length,
-      totalPage: this.modelBufferArray[message.bufferIdx].length,
+      totalPage: this.modelBufferArray[message.currentIdx].length,
       data
     });
   }

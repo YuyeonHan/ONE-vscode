@@ -55,7 +55,7 @@
     loadJsonSubgraphBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
-        command: "loadJson", type: 'partOfModel', part: 'subgraphs'
+        command: "loadJson", type: 'partOfModel', part: 'subgraphs', currentIdx: 0,
       });
     });
 
@@ -63,7 +63,7 @@
     loadJsonBufferBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
-        command: "loadJson", type: 'partOfModel', part: 'buffers', bufferIdx:2, pageIdx:1
+        command: "loadJson", type: 'partOfModel', part: 'buffers', currentIdx:2, pageIdx:1
       });
     });
 
