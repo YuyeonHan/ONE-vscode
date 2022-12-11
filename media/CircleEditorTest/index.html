@@ -8,19 +8,6 @@
 </head>
 
 <body>
-  <button id="LoadModelBtn">Load Model 클릭!</button><br>
-
-  <button id="AttributeBtn">Attribute 수정 버튼</button><br>
-  <button id="TensorBtn">Tensor 수정 버튼</button><br>
-  <button id="ExceptionBtn">예외 처리버튼</button><br>
-  <button id="CustomTypeBtn">커스텀 정보 보내기 버튼</button><br>
-  <button id="TensorAddBtn">텐서 추가하기 버튼</button><br>
-
-  <button id="loadJsonBtn">load Json 버튼</button><br>
-  <button id="updateJsonBtn"> update json버튼</button><br>
-  <button id="sendEncodingDataBtn"> sendEncodingDataBtn</button><br>
-  <br>
-  <br>
   <button id="loadJsonOptionBtn">load Json Option 버튼</button><br>
   <button id="loadJsonSubgraphBtn">load Json Subgraph 버튼</button><br>
   <button id="loadJsonBufferBtn">load Json Buffer 버튼</button><br>
@@ -30,24 +17,16 @@
   <p>testest</p>
   <script>
     const vscode = acquireVsCodeApi();
-    const loadModelBtn = document.querySelector("#LoadModelBtn");
-
+    
     vscode.postMessage({
       command: "openJsonEditor",
-    });
-
-    loadModelBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        type: "dd", command: "loadmodel", offset: '0'
-      });
     });
 
     const loadJsonOptionBtn = document.querySelector("#loadJsonOptionBtn");
     loadJsonOptionBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
-        command: "loadJson", type: "partOfModel", part: 'options'
+        command: "loadJson", part: 'options'
       });
     });
 
@@ -55,7 +34,7 @@
     loadJsonSubgraphBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
-        command: "loadJson", type: 'partOfModel', part: 'subgraphs', currentIdx: 0,
+        command: "loadJson", part: 'subgraphs', currentIdx: 0,
       });
     });
 
@@ -63,7 +42,7 @@
     loadJsonBufferBtn.addEventListener("click", e => {
       e.preventDefault();
       vscode.postMessage({
-        command: "loadJson", type: 'partOfModel', part: 'buffers', currentIdx:2, pageIdx:1
+        command: "loadJson", part: 'buffers', currentIdx:2, pageIdx:1
       });
     });
 
@@ -91,138 +70,7 @@
 
 
     })
-  
-    
-    const ExceptionBtn = document.querySelector("#ExceptionBtn");
-    ExceptionBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        command: "edit", type: "아무거나"
-      });
-    });
 
-    const loadJsonBtn = document.querySelector("#loadJsonBtn");
-    loadJsonBtn.addEventListener("click", e => {
-        e.preventDefault();
-        vscode.postMessage({
-          command: "loadJson", type: 'entireModel'
-      });
-    });
-
-    const updateJsonBtn = document.querySelector("#updateJsonBtn");
-    updateJsonBtn.addEventListener("click", e => {
-      e.preventDefault();
-
-      requestModel = document.getElementById("input model").value;
-      // console.log(responseModel+" -------")
-      vscode.postMessage({
-        command: "updateJson", data: requestModel
-      });
-    });
-
-    const sendEncodingDataBtn = document.querySelector("#sendEncodingDataBtn");
-    sendEncodingDataBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        command: "requestEncodingData",
-        data: {
-          "adj_x" : ["true" , "boolean"],
-          "adj_y" : ["false" , "string"],
-          "T" : ["123" , "int"]
-        }
-      });
-    });
-
-    const AttributeBtn = document.querySelector("#AttributeBtn");
-    AttributeBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        command: "edit", type: "attribute",
-        data: `{
-  "name": "custom",
-  "_attribute": {
-    "name": "MulV2",
-		"keys" : ["a_x","a_y","T12"],
-    "a_x" : "1",
-		"a_x_type" : "int",
-		"a_y" : "0.12345",
-		"a_y_type" : "float",
-    "T12": "3",
-		"T12_type" : "int"
-  },
-  "_nodeIdx": "1",
-  "_subgraphIdx": "2"
-}`
-      });
-    });
-
-    const TensorBtn = document.querySelector("#TensorBtn");
-    TensorBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        command: "edit", type: "tensor", data: {
-  "_name": "bias",
-  "_visible": true,
-  "_arguments": [
-    {
-      "_name": "biasbias",
-      "_location": "5",
-      "_type": {
-        "_dataType": "float32",
-        "_shape": { "_dimensions": [16] }
-      },
-      "_initializer": {
-        "_location": "5",
-        "_type": {
-          "_dataType": "float32",
-          "_shape": { "_dimensions": [16] }
-        },
-        "_is_variable": false,
-        "_name": "biasbias",
-        "_is_changed": true,
-        "_data": [27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
-27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
-27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
-27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
-27, 27]
-      }
-    }
-  ],
-  "_subgraphIdx": "0"
-}
-      });
-    });
-
-    const CustomTypeBtn = document.querySelector("#CustomTypeBtn");
-    CustomTypeBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        command: "CustomType", type: "", data:`{
-    "_subgraphIdx": "2",
-    "_nodeIdx": "1"
-}`
-      });
-    });
-
-    const TensorAddBtn = document.querySelector("#TensorAddBtn");
-    TensorAddBtn.addEventListener("click", e => {
-      e.preventDefault();
-      vscode.postMessage({
-        command: "edit", type: "tensoradd", data: {
-        "_subgraphIdx" : "0",
-        "data":{
-          "shape" : [4],
-          "type" : "int64",
-          "buffer" : {"data" : [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]},
-          "name" : "TestName",
-          "quantization": null,
-          "isVariable": false,
-          "sparsity": null,
-          "shapeSignature": []
-        }
-      }
-      });
-    });
 
 
   </script>
