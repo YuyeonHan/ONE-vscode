@@ -54,16 +54,8 @@
         if(e.data.type === "modelpath") return;
         vscode.postMessage({ command: 'loadmodel', offset: e.data.offset + e.data.length + "" });
       }
-      
-      if(e.data.command ==="loadJson"){
-        console.log(e.data.data);
-        let modelJson = "";
-        modelJson = e.data.data;
-        document.getElementById("input model").innerHTML = modelJson;
-        document.getElementById("json model").innerHTML = modelJson;
-      }
 
-      if(e.data.command ==="loadJsonMulti"){
+      if(e.data.command ==="loadJson"){
         console.log(e.data);
         document.getElementById("input model").innerHTML = e.data.data;
       }
