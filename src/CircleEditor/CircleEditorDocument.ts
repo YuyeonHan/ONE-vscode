@@ -215,6 +215,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
 
   /**
    * edit _model state when user modified model through json editor
+   * TODO: remove this function if modified jsonEditor performs well
    */
   editJsonModel(newModelString: string) {
     const oldModelData = this.modelData;
