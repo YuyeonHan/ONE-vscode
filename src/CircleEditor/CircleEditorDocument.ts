@@ -440,13 +440,13 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       })+',\n';
     });
     optionData = optionData.slice(0,-2);
-    this._onDidChangeContent.fire({command: 'loadJsonMulti', type: 'options', data: optionData});
+    this._onDidChangeContent.fire({command: 'loadJson', type: 'options', data: optionData});
   }
 
   loadJsonModelSubgraphs(message: any) {
     const { currentIdx } = message;
     this._onDidChangeContent.fire({
-      command: 'loadJsonMulti',
+      command: 'loadJson',
       type: 'subgraphs',
       totalSubgraph: this._model.subgraphs.length,
       currentIdx,
@@ -464,7 +464,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     }
     const data = JSON.stringify(value).replace('[', '').replace(']', '').trim()
     this._onDidChangeContent.fire({
-      command: 'loadJsonMulti',
+      command: 'loadJson',
       type: 'buffers',
       currentIdx: message.currentIdx,
       pageIdx: message.pageIdx,
