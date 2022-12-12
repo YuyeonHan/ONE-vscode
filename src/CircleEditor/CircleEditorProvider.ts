@@ -19,8 +19,6 @@ import * as vscode from 'vscode';
 import {Balloon} from '../Utils/Balloon';
 
 import {disposeAll} from '../Utils/external/Dispose';
-import {getNonce} from '../Utils/external/Nonce';
-import {getUri} from '../Utils/external/Uri';
 
 import {CircleEditorDocument} from './CircleEditorDocument';
 
@@ -53,7 +51,14 @@ export enum MessageDefs {
   loadJson = 'loadJson',
   updateJson = 'updateJson',
   getCustomOpAttrT = 'getCustomOpAttrT',
-  requestEncodingData = 'requestEncodingData'
+  requestEncodingData = 'requestEncodingData',
+  openJsonEditor = 'openJsonEditor',
+  loadModelIndexInfo = 'loadModelIndexInfo',
+  applyJsonToModel = 'applyJsonToModel',
+  //TODO: check if message.type can be defined here
+  entireModel = 'entireModel',
+  partOfModel = 'partOfModel',
+
 }
 
 /**
@@ -169,11 +174,56 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
       case MessageDefs.edit:
         document.makeEdit(message);
         return;
-      case MessageDefs.loadJson:
-        document.loadJson();
+      case MessageDefs.openJsonEditor:
+        document.setBufferArray();
+        document.loadJsonModelOptions();
         return;
+      //TODO: remove this message if it is not necessary
+      case MessageDefs.loadModelIndexInfo:
+        document.loadModelIndexInfo();
+        return;
+      case MessageDefs.loadJson:
+        if(message.type === MessageDefs.entireModel) {
+          document.loadJson();
+          return;
+        }else if(message.type === MessageDefs.partOfModel) {
+          if(message.part === 'options') {
+            document.loadJsonModelOptions();
+            return;
+          }else if(message.part === 'subgraphs') {
+            document.loadJsonModelSubgraphs(message);
+            return;
+          }else if(message.part === 'buffers') {
+            document.loadJsonModelBuffers(message);
+            return;
+          }else{
+            return;
+          }
+        }
+        return;
+      //TODO: divide message - permanent edit and temporary edit
       case MessageDefs.updateJson:
-        document.editJsonModel(message.data);
+        if(message.type === MessageDefs.entireModel){
+          document.editJsonModel(message.data);
+          return;
+        }else if(message.type === MessageDefs.partOfModel){
+          if(message.part === 'options') {
+            document.editJsonModelOptions(message.data);
+            return;
+          }else if(message.part === 'subgraphs') {
+            document.editJsonModelSubgraphs(message.data);
+            return;
+          }else if(message.part === 'buffers') {
+            document.editJsonModelBuffers(message.data);
+            return;
+          }else{
+            return;
+          }
+        }else{
+          return;
+        }
+      case MessageDefs.applyJsonToModel:
+        document.applyBufferArray();
         return;
       case MessageDefs.getCustomOpAttrT:
         document.setCustomOpAttrT(message);
@@ -206,45 +256,15 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
   }
 
   private getHtmlForWebview(webview: vscode.Webview): string {
-    const htmlUrl = webview.asWebviewUri(vscode.Uri.joinPath(
-        this._context.extensionUri, this.folderMediaCircleEditor, 'index.html'));
-    const codiconUri = getUri(
-        webview, this._context.extensionUri,
-        ['node_modules', '@vscode', 'codicons', 'dist', 'codicon.css']);
-    let html = fs.readFileSync(htmlUrl.fsPath, {encoding: 'utf-8'});
-
-    const nonce = getNonce();
-    html = html.replace(/%nonce%/gi, nonce);
-    html = html.replace('%webview.cspSource%', webview.cspSource);
-    html = html.replace(/\${codiconUri}/g, `${codiconUri}`);
-    // necessary files from netron to work
-    html = this.updateUri(html, webview, '%view-grapher.css%', 'view-grapher.css');
-    html = this.updateUri(html, webview, '%view-sidebar.css%', 'view-sidebar.css');
-    html = this.updateUri(html, webview, '%view-json-editor.css%', 'view-json-editor.css');
-    html = this.updateUri(html, webview, '%type.js%', 'type.js');
-    html = this.updateUri(html, webview, '%view-sidebar.js%', 'view-sidebar.js');
-    html = this.updateUri(html, webview, '%view-grapher.js%', 'view-grapher.js');
-    html = this.updateUri(html, webview, '%view-json-editor.js%', 'view-json-editor.js');
-    html = this.updateExternalUri(html, webview, '%dagre.js%', 'dagre.js');
-    html = this.updateExternalUri(html, webview, '%base.js%', 'base.js');
-    html = this.updateExternalUri(html, webview, '%text.js%', 'text.js');
-    html = this.updateExternalUri(html, webview, '%json.js%', 'json.js');
-    html = this.updateExternalUri(html, webview, '%xml.js%', 'xml.js');
-    html = this.updateExternalUri(html, webview, '%python.js%', 'python.js');
-    html = this.updateExternalUri(html, webview, '%protobuf.js%', 'protobuf.js');
-    html = this.updateExternalUri(html, webview, '%flatbuffers.js%', 'flatbuffers.js');
-    html = this.updateExternalUri(html, webview, '%flexbuffers.js%', 'flexbuffers.js');
-    html = this.updateExternalUri(html, webview, '%zip.js%', 'zip.js');
-    html = this.updateExternalUri(html, webview, '%gzip.js%', 'gzip.js');
-    html = this.updateExternalUri(html, webview, '%tar.js%', 'tar.js');
-    // for circle format
-    html = this.updateExternalUri(html, webview, '%circle.js%', 'circle.js');
-    html = this.updateExternalUri(html, webview, '%circle-schema.js%', 'circle-schema.js');
-    // modified for one-vscode
-    html = this.updateUri(html, webview, '%index.js%', 'index.js');
-    html = this.updateUri(html, webview, '%view.js%', 'view.js');
-    // viewMode: this is replaced as a comment as we do not provide selection mode
-    // html = html.replace('%viewMode%', this._viewMode);
+    const htmlUrl = webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        this._context.extensionUri,
+        "media",
+        "CircleEditorTest",
+        "index.html"
+      )
+    );
+    let html = fs.readFileSync(htmlUrl.fsPath, { encoding: "utf-8" });
 
     return html;
   }
