@@ -176,7 +176,6 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
       case MessageDefs.loadJson:
         document.loadJsonModel(message);
         return;
-      //TODO: divide message - permanent edit and temporary edit
       case MessageDefs.updateJson:
         try {
           document.editJson(message);

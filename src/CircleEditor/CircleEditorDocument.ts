@@ -318,7 +318,6 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     }
   }
 
-  //TODO: trimString 하는 시점 정하기
   loadJsonModelOption() {
     let option = this.trimString(this._jsonModel!.option);
     this._onDidChangeContent.fire({command: 'loadJson', type: 'options', data: option});
