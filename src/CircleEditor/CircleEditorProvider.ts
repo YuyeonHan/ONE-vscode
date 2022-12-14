@@ -53,7 +53,6 @@ export enum MessageDefs {
   getCustomOpAttrT = 'getCustomOpAttrT',
   requestEncodingData = 'requestEncodingData',
   openJsonEditor = 'openJsonEditor',
-  loadModelIndexInfo = 'loadModelIndexInfo',
   applyJsonToModel = 'applyJsonToModel',
 }
 
@@ -173,10 +172,6 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
       case MessageDefs.openJsonEditor:
         //TODO: new jsonModel
         document.loadJsonModelOption();
-        return;
-      //TODO: remove this message if it is not necessary
-      case MessageDefs.loadModelIndexInfo:
-        document.loadModelIndexInfo();
         return;
       case MessageDefs.loadJson:
         document.loadJsonModel(message);

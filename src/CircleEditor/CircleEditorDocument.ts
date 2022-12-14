@@ -130,7 +130,6 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
   private readonly _uri: vscode.Uri;
   private _model: Circle.ModelT;
   private readonly packetSize = 1024 * 1024 * 1024;
-  private modelBufferArray: any[] = [];
   private jsonModel?: JsonModel;
 
   public get uri(): vscode.Uri {
@@ -616,18 +615,6 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       this._model = this.loadModel(oldModelData);
       Balloon.error('invalid model', false);
     }
-  }
-  
-  loadModelIndexInfo() {
-    this._onDidChangeContent.fire({command: 'modelIndexInfo',
-      data: {
-        subgraphLen: this._model.subgraphs.length,
-        bufferLen: this.modelBufferArray.length,
-        bufferPageInfo: this.modelBufferArray.map(bufferArr => {
-          return bufferArr.length;
-        })
-      }
-    });
   }
 
   loadJsonModel(message: any) {
