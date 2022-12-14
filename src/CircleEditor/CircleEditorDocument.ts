@@ -620,9 +620,9 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
         return new Circle.BufferT(buffer);
       });
 
+      this.jsonModel = new JsonModel(this._model);
       const newModelData = this.modelData;
       this.notifyEdit(oldModelData, newModelData);
-      this.jsonModel = new JsonModel(this._model);
     } catch (e) {
       this._model = this.loadModel(oldModelData);
       Balloon.error('invalid model', false);
