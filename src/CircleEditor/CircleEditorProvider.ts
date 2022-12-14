@@ -206,7 +206,8 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
           return;
         }
       case MessageDefs.applyJsonToModel:
-        document.applyBufferArray();
+        //TODO: modify String of current page
+        document.applyJsonToModel();
         return;
       case MessageDefs.getCustomOpAttrT:
         document.setCustomOpAttrT(message);
