@@ -55,10 +55,6 @@ export enum MessageDefs {
   openJsonEditor = 'openJsonEditor',
   loadModelIndexInfo = 'loadModelIndexInfo',
   applyJsonToModel = 'applyJsonToModel',
-  //TODO: check if message.type can be defined here
-  entireModel = 'entireModel',
-  partOfModel = 'partOfModel',
-
 }
 
 /**
@@ -183,42 +179,29 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         document.loadModelIndexInfo();
         return;
       case MessageDefs.loadJson:
-        if(message.type === MessageDefs.entireModel) {
-          document.loadJson();
+        if(message.part === 'options') {
+          document.loadJsonModelOptions();
           return;
-        }else if(message.type === MessageDefs.partOfModel) {
-          if(message.part === 'options') {
-            document.loadJsonModelOptions();
-            return;
-          }else if(message.part === 'subgraphs') {
-            document.loadJsonModelSubgraphs(message);
-            return;
-          }else if(message.part === 'buffers') {
-            document.loadJsonModelBuffers(message);
-            return;
-          }else{
-            return;
-          }
+        }else if(message.part === 'subgraphs') {
+          document.loadJsonModelSubgraphs(message);
+          return;
+        }else if(message.part === 'buffers') {
+          document.loadJsonModelBuffers(message);
+          return;
+        }else{
+          return;
         }
-        return;
       //TODO: divide message - permanent edit and temporary edit
       case MessageDefs.updateJson:
-        if(message.type === MessageDefs.entireModel){
-          document.editJsonModel(message.data);
+        if(message.part === 'options') {
+          document.editJsonModelOptions(message.data);
           return;
-        }else if(message.type === MessageDefs.partOfModel){
-          if(message.part === 'options') {
-            document.editJsonModelOptions(message.data);
-            return;
-          }else if(message.part === 'subgraphs') {
-            document.editJsonModelSubgraphs(message.data);
-            return;
-          }else if(message.part === 'buffers') {
-            document.editJsonModelBuffers(message.data);
-            return;
-          }else{
-            return;
-          }
+        }else if(message.part === 'subgraphs') {
+          document.editJsonModelSubgraphs(message.data);
+          return;
+        }else if(message.part === 'buffers') {
+          document.editJsonModelBuffers(message.data);
+          return;
         }else{
           return;
         }
