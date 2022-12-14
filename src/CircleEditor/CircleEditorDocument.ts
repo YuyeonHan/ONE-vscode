@@ -70,20 +70,20 @@ class JsonModel {
   }
 
   updateOption (data: string) {
-    this.option = data;
+    this._option = data;
   }
 
   updateSubgraph(action: jsonAction, index: number, data?: string) {
     try {
       switch (action) {
         case jsonAction.INSERT:
-          this.subgraph.splice(index, 0, data!);
+          this._subgraph.splice(index, 0, data!);
           break;
         case jsonAction.REPLACE:
-          this.subgraph[index] = data!;
+          this._subgraph[index] = data!;
           break;
         case jsonAction.REMOVE:
-          this.subgraph.splice(index, 1);
+          this._subgraph.splice(index, 1);
           break;
       }
     } catch (e) {
@@ -95,18 +95,20 @@ class JsonModel {
     try {
       switch (action) {
         case jsonAction.INSERT:
-          this.buffers.splice(index, 0, [[]]);
+          this._buffers.splice(index, 0, [[]]);
           break;
         case jsonAction.REPLACE:
-          this.buffers[index][page-1] = data!.split(",").map(n => JSON.parse(n));
+          this._buffers[index][page-1] = data!.split(",").map(n => JSON.parse(n));
           break;
         case jsonAction.REMOVE:
-          this.buffers.splice(index, 1);
+          this._buffers.splice(index, 1);
           break;
       }
     } catch (e) {
       throw new Error();
     }
+  }
+
   public get option(): string {
     return this._option;
   }
