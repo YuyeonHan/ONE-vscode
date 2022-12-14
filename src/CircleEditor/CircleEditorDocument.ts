@@ -34,36 +34,36 @@ const enum jsonAction{
 }
 
 class JsonModel {
-  private option: string;
-  private subgraph: string[];
-  private buffers: number[][][];
+  private _option: string;
+  private _subgraph: string[];
+  private _buffers: number[][][];
   private readonly BUF_PAGE_SIZE: number = 300000;
 
   constructor(model: Circle.ModelT) {
     // set option string
-    this.option = '';
+    this._option = '';
     Object.entries(model).forEach(e => {
       if(e[0]==='subgraphs'||e[0]==='buffers'){return;}
-      this.option+=`'${e[0]}':`;
-      this.option+=JSON.stringify(e[1], (_, v) => {
+      this._option+=`'${e[0]}':`;
+      this._option+=JSON.stringify(e[1], (_, v) => {
         return typeof v === 'bigint' ? v.toString() : v;
       })+',\n';
     });
-    this.option = this.option.slice(0, -2);
+    this._option = this._option.slice(0, -2);
 
     // set subgraph array
-    this.subgraph = model.subgraphs.map(data => {
+    this._subgraph = model.subgraphs.map(data => {
       return JSON.stringify(data);
     });
 
     // set buffer array
-    this.buffers = [];
+    this._buffers = [];
     for(let i=0; i<model.buffers.length; i++){
-      this.buffers.push([]);
+      this._buffers.push([]);
       let buffer = model.buffers[i].data;
       let tmpIdx = 0;
       while(buffer.length>0){
-        this.buffers[i].push(buffer.splice(tmpIdx, tmpIdx+this.BUF_PAGE_SIZE));
+        this._buffers[i].push(buffer.splice(tmpIdx, tmpIdx+this.BUF_PAGE_SIZE));
         tmpIdx+=this.BUF_PAGE_SIZE;
       }
     }
@@ -107,6 +107,14 @@ class JsonModel {
     } catch (e) {
       throw new Error();
     }
+  public get option(): string {
+    return this._option;
+  }
+  public get subgraph(): string[] {
+    return this._subgraph;
+  }
+  public get buffers(): number[][][] {
+    return this._buffers;
   }
 }
 
@@ -471,21 +479,146 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     }
   }
 
-  applyBufferArray() {
+  applyJsonToModel() {
     const oldModelData = this.modelData;
     try{
-      this.modelBufferArray.map((bufferArr, idx) => {
-        this._model.buffers[idx].data = bufferArr.reduce((acc: number[], cur: number[]) => { return [...acc, ...cur] });
+      // Option: version, operatorCodes, description, metadataBuffer, metadata, signatureDefs
+      let option = JSON.parse(this.jsonModel!.option);
+
+      this._model.version = option.version;
+      this._model.operatorCodes = option.operatorCodes.map((data: Circle.OperatorCodeT) => {
+        return Object.setPrototypeOf(data, Circle.OperatorCodeT.prototype);
       });
-      
+      this._model.description = option.description;
+      this._model.metadataBuffer = option.metadataBuffer;
+      this._model.metadata = option.metadata.map((data: Circle.MetadataT) => {
+        return Object.setPrototypeOf(data, Circle.MetadataT.prototype);
+      });
+      this._model.signatureDefs = option.signatureDefs.map((data: Circle.SignatureDefT) => {
+        data.inputs = data.inputs.map((tensor: Circle.TensorMapT) => {
+          return Object.setPrototypeOf(tensor, Circle.TensorMapT.prototype);
+        });
+        data.outputs = data.outputs.map((tensor: Circle.TensorMapT) => {
+          return Object.setPrototypeOf(tensor, Circle.TensorMapT.prototype);
+        });
+        return Object.setPrototypeOf(data, Circle.SignatureDefT.prototype);
+      });
+
+      // Subgraph
+      this._model.subgraphs = this.jsonModel!.subgraph.map((data: string) => {
+        let subgraph: Circle.SubGraphT = JSON.parse(data);
+
+        // tensors
+        subgraph.tensors = subgraph.tensors.map((tensor: Circle.TensorT) => {
+          if (tensor.quantization) {
+            if (tensor.quantization.details) {
+              tensor.quantization.details = Object.setPrototypeOf(tensor.quantization?.details, Circle.CustomQuantizationT.prototype);
+            }
+            tensor.quantization.zeroPoint = tensor.quantization.zeroPoint.map(value => {
+              return BigInt(value);
+            });
+            tensor.quantization = Object.setPrototypeOf(
+                tensor.quantization, Circle.QuantizationParametersT.prototype);
+          }
+          // sparsity parameters
+          if (tensor.sparsity) {
+            if (tensor.sparsity.dimMetadata) {
+              tensor.sparsity.dimMetadata =
+                  tensor.sparsity.dimMetadata.map((dimMeta: Circle.DimensionMetadataT) => {
+                    if (dimMeta.arraySegmentsType && dimMeta.arraySegments) {
+                      const sparseVectorClass = Object.entries(Types.SparseVector).find(element => {
+                        return dimMeta.arraySegmentsType === parseInt(element[0]);
+                      });
+                      if (sparseVectorClass && sparseVectorClass[1]) {
+                        dimMeta.arraySegments = Object.setPrototypeOf(
+                            dimMeta.arraySegments, sparseVectorClass[1].prototype);
+                      }
+                    } else {
+                      dimMeta.arraySegments = null;
+                    }
+                    if (dimMeta.arrayIndicesType && dimMeta.arrayIndices) {
+                      const sparseVectorClass = Object.entries(Types.SparseVector).find(element => {
+                        return dimMeta.arrayIndicesType === parseInt(element[0]);
+                      });
+                      if (sparseVectorClass && sparseVectorClass[1]) {
+                        dimMeta.arrayIndices = Object.setPrototypeOf(
+                            dimMeta.arrayIndices, sparseVectorClass[1].prototype);
+                      }
+                    } else {
+                      dimMeta.arrayIndices = null;
+                    }
+                    return Object.setPrototypeOf(dimMeta, Circle.DimensionMetadataT.prototype);
+                  });  // end map dimMeta
+
+              if (!tensor.sparsity.traversalOrder || !tensor.sparsity.traversalOrder.length) {
+                tensor.sparsity.traversalOrder = [];
+              }
+              if (!tensor.sparsity.blockMap || !tensor.sparsity.blockMap.length) {
+                tensor.sparsity.blockMap = [];
+              }
+              Object.setPrototypeOf(
+                  tensor.sparsity.dimMetadata, Circle.DimensionMetadataT.prototype);
+            }  // end if tensor.sparsity.dimMetadata
+
+            tensor.sparsity =
+                Object.setPrototypeOf(tensor.sparsity, Circle.SparsityParametersT.prototype);
+          }  // end if tensor.sparsity
+
+          return Object.setPrototypeOf(tensor, Circle.TensorT.prototype);
+        });
+
+        // operators
+        subgraph.operators = subgraph.operators.map((operator: Circle.OperatorT) => {
+          if (this._model.operatorCodes[operator.opcodeIndex].deprecatedBuiltinCode === 32) {
+            // case1 : custom operator
+            if (operator.builtinOptionsType || operator.builtinOptions) {
+              throw new Error;
+            }
+          } else {
+            // case2 : builtin operator
+            const optionsClass = Object.entries(Types.NumberToBuiltinOptions).find(element => {
+              return operator.builtinOptionsType === parseInt(element[0]);
+            });
+            if (optionsClass && optionsClass[1] && operator.builtinOptions) {
+              let tmpBuiltinOptions = new optionsClass[1];
+              Object.keys(operator.builtinOptions).forEach((element) => {
+                if (!(element in tmpBuiltinOptions)) {
+                  throw new Error;
+                }
+              });
+              Object.keys(tmpBuiltinOptions).forEach((element) => {
+                if (operator.builtinOptions && !(element in operator.builtinOptions)) {
+                  throw new Error;
+                }
+              });
+              operator.builtinOptions = Object.setPrototypeOf(
+                  operator.builtinOptions === null ? {} : operator.builtinOptions,
+                  optionsClass[1].prototype);
+            } else {
+              operator.builtinOptions = null;
+            }
+          }
+          return Object.setPrototypeOf(operator, Circle.OperatorT.prototype);
+        });
+
+        return Object.setPrototypeOf(subgraph, Circle.SubGraphT.prototype);
+      });
+
+      // Buffer
+      this._model.buffers = this.jsonModel!.buffers.map((data: number[][]) => {
+        let buffer: number[] = data.reduce((acc: number[], cur: number[]) => {
+          return [...acc, ...cur];
+        });
+        return new Circle.BufferT(buffer);
+      });
+
       const newModelData = this.modelData;
       this.notifyEdit(oldModelData, newModelData);
-      this.setBufferArray();
+      this.jsonModel = new JsonModel(this._model);
     } catch (e) {
       this._model = this.loadModel(oldModelData);
-      Balloon.error('invalid model', false); 
+      Balloon.error('invalid model', false);
     }
-
   }
   
   loadModelIndexInfo() {
