@@ -183,17 +183,11 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         return;
       //TODO: divide message - permanent edit and temporary edit
       case MessageDefs.updateJson:
-        if(message.part === 'options') {
-          document.editJsonModelOptions(message.data);
-          return;
-        }else if(message.part === 'subgraphs') {
-          document.editJsonModelSubgraphs(message.data);
-          return;
-        }else if(message.part === 'buffers') {
-          document.editJsonModelBuffers(message.data);
-          return;
-        }else{
-          return;
+        try {
+          document.editJson(message);
+          document.loadJsonModel(message.loadParams);
+        } catch (e) {
+          Balloon.error("invalid request", false);
         }
       case MessageDefs.applyJsonToModel:
         //TODO: modify String of current page

@@ -697,16 +697,22 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     return str;
   }
 
-  editJsonModelOptions(inputModelOptions: string) {
-    return;
-  }
-
-  editJsonModelSubgraphs(message: any) {
-    return;
-  }
-
-  editJsonModelBuffers(messageData: any) {
-   return;
+  editJson(message: any){
+    const {
+      target,
+      action,
+      index,
+      page,
+      data,
+    } = message.updateParams;
+    
+    if(target === 'options') {
+      this.jsonModel?.updateOption(data);
+    }else if(target === 'subgraphs') {
+      this.jsonModel?.updateSubgraph(action, index, data);
+    }else if(target === 'buffers') {
+      this.jsonModel?.updateBuffers(action, index, page, data);
+    }
   }
 
   /**
