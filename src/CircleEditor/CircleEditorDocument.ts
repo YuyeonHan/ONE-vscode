@@ -33,6 +33,43 @@ const enum jsonAction{
   REMOVE = "remove",
 }
 
+class JsonModel {
+  private option: string;
+  private subgraph: string[];
+  private buffers: number[][][];
+  private readonly BUF_PAGE_SIZE: number = 300000;
+
+  constructor(model: Circle.ModelT) {
+    // set option string
+    this.option = '';
+    Object.entries(model).forEach(e => {
+      if(e[0]==='subgraphs'||e[0]==='buffers'){return;}
+      this.option+=`'${e[0]}':`;
+      this.option+=JSON.stringify(e[1], (_, v) => {
+        return typeof v === 'bigint' ? v.toString() : v;
+      })+',\n';
+    });
+    this.option = this.option.slice(0, -2);
+
+    // set subgraph array
+    this.subgraph = model.subgraphs.map(data => {
+      return JSON.stringify(data);
+    });
+
+    // set buffer array
+    this.buffers = [];
+    for(let i=0; i<model.buffers.length; i++){
+      this.buffers.push([]);
+      let buffer = model.buffers[i].data;
+      let tmpIdx = 0;
+      while(buffer.length>0){
+        this.buffers[i].push(buffer.splice(tmpIdx, tmpIdx+this.BUF_PAGE_SIZE));
+        tmpIdx+=this.BUF_PAGE_SIZE;
+      }
+    }
+  }
+}
+
 /**
  * Custom Editor Document necessary for vscode extension API
  * This class contains model object as _model variable
@@ -43,6 +80,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
   private _model: Circle.ModelT;
   private readonly packetSize = 1024 * 1024 * 1024;
   private modelBufferArray: any[] = [];
+  private jsonModel?: JsonModel;
 
   public get uri(): vscode.Uri {
     return this._uri;
