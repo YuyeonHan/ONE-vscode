@@ -630,46 +630,58 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     });
   }
 
-  loadJsonModelOptions() {
-    let optionData:string = '';
-    Object.entries(this._model).forEach(e => {
-      if(e[0]==='subgraphs'||e[0]==='buffers'){return;}
-      optionData+=`'${e[0]}':`;
-      optionData+=JSON.stringify(e[1], (_, v) => {
-        return typeof v === 'bigint' ? v.toString() : v;
-      })+',\n';
-    });
-    optionData = optionData.slice(0,-2);
-    this._onDidChangeContent.fire({command: 'loadJson', type: 'options', data: optionData});
+  loadJsonModel(message: any) {
+    switch (message.part) {
+      case 'options':
+        this.loadJsonModelOption();
+        return;
+      case 'subgraphs':
+        this.loadJsonModelSubgraph(message.currentIdx);
+        return;
+      case 'buffers':
+        this.loadJsonModelBuffer(message.currentIdx, message.pageIdx);
+        return;
+      default:
+        return;
+    }
   }
 
-  loadJsonModelSubgraphs(message: any) {
-    const { currentIdx } = message;
+  //TODO: trimString 하는 시점 정하기
+  loadJsonModelOption() {
+    let option = this.trimString(this.jsonModel!.option);
+    this._onDidChangeContent.fire({command: 'loadJson', type: 'options', data: option});
+  }
+
+  loadJsonModelSubgraph(currentIdx: any) {
+    if(this.jsonModel!.subgraph.length <= currentIdx){
+      Balloon.error('subgraph index out of range', false);
+      return;
+    }
+
+    let subgraph = this.trimString(this.jsonModel!.subgraph[currentIdx]);
     this._onDidChangeContent.fire({
       command: 'loadJson',
       type: 'subgraphs',
-      totalSubgraph: this._model.subgraphs.length,
+      totalSubgraph: this.jsonModel!.subgraph.length,
       currentIdx,
-      data: JSON.stringify(this._model.subgraphs[currentIdx]),
+      data: subgraph,
     });
   }
 
-  loadJsonModelBuffers(message:any){
-    let currentIdx:number = message.currentIdx;
-    let pageIdx:number = message.pageIdx-1; //index starts from 0
-    let value = this.modelBufferArray[currentIdx][pageIdx];
-    if (value === undefined) {
-      Balloon.error('buffer index out of range.', false);
+  loadJsonModelBuffer(currentIdx:any, pageIdx: any){
+    pageIdx--; // array index starts from 0
+    if(this.jsonModel!.buffers.length <= currentIdx || this.jsonModel!.buffers[currentIdx].length <= pageIdx){
+      Balloon.error('buffer or page index out of range.', false);
       return;
     }
-    const data = JSON.stringify(value).replace('[', '').replace(']', '').trim()
+    const data = JSON.stringify(this.jsonModel!.buffers[currentIdx][pageIdx]).replace('[', '').replace(']', '').trim();
     this._onDidChangeContent.fire({
       command: 'loadJson',
       type: 'buffers',
-      currentIdx: message.currentIdx,
-      pageIdx: message.pageIdx,
-      totalBuffer: this.modelBufferArray.length,
-      totalPage: this.modelBufferArray[message.currentIdx].length,
+      currentIdx,
+      pageIdx: pageIdx+1,
+      totalBuffer: this.jsonModel!.buffers.length,
+      totalPage: this.jsonModel!.buffers[currentIdx].length,
       data
     });
   }
