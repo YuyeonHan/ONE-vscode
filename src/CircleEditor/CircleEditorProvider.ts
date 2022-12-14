@@ -53,7 +53,6 @@ export enum MessageDefs {
   getCustomOpAttrT = 'getCustomOpAttrT',
   requestEncodingData = 'requestEncodingData',
   openJsonEditor = 'openJsonEditor',
-  loadModelIndexInfo = 'loadModelIndexInfo',
   applyJsonToModel = 'applyJsonToModel',
 }
 
@@ -171,43 +170,27 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         document.makeEdit(message);
         return;
       case MessageDefs.openJsonEditor:
-        //TODO: new jsonModel
-        document.loadJsonModelOptions();
-        return;
-      //TODO: remove this message if it is not necessary
-      case MessageDefs.loadModelIndexInfo:
-        document.loadModelIndexInfo();
+        document.initJsonModel();
+        document.loadJsonModelOption();
         return;
       case MessageDefs.loadJson:
-        if(message.part === 'options') {
-          document.loadJsonModelOptions();
-          return;
-        }else if(message.part === 'subgraphs') {
-          document.loadJsonModelSubgraphs(message);
-          return;
-        }else if(message.part === 'buffers') {
-          document.loadJsonModelBuffers(message);
-          return;
-        }else{
-          return;
-        }
-      //TODO: divide message - permanent edit and temporary edit
+        document.loadJsonModel(message);
+        return;
       case MessageDefs.updateJson:
-        if(message.part === 'options') {
-          document.editJsonModelOptions(message.data);
-          return;
-        }else if(message.part === 'subgraphs') {
-          document.editJsonModelSubgraphs(message.data);
-          return;
-        }else if(message.part === 'buffers') {
-          document.editJsonModelBuffers(message.data);
-          return;
-        }else{
-          return;
+        try {
+          document.editJson(message);
+          document.loadJsonModel(message.loadParams);
+        } catch (e) {
+          Balloon.error('invalid request', false);
         }
+        return;
       case MessageDefs.applyJsonToModel:
-        //TODO: modify String of current page
-        document.applyJsonToModel();
+        try {
+          document.editJson(message);
+          document.applyJsonToModel();
+        } catch (e) {
+          Balloon.error('invalid request', false);
+        }
         return;
       case MessageDefs.getCustomOpAttrT:
         document.setCustomOpAttrT(message);
