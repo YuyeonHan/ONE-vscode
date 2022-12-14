@@ -62,10 +62,8 @@ class JsonModel {
     for(let i=0; i<model.buffers.length; i++){
       this._buffers.push([]);
       let buffer = model.buffers[i].data;
-      let tmpIdx = 0;
       while(buffer.length>0){
-        this._buffers[i].push(buffer.splice(tmpIdx, tmpIdx+this.BUF_PAGE_SIZE));
-        tmpIdx+=this.BUF_PAGE_SIZE;
+        this._buffers[i].push(buffer.splice(0, this.BUF_PAGE_SIZE));
       }
     }
   }
