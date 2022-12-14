@@ -187,11 +187,16 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
           document.editJson(message);
           document.loadJsonModel(message.loadParams);
         } catch (e) {
-          Balloon.error("invalid request", false);
+          Balloon.error('invalid request', false);
         }
+        return;
       case MessageDefs.applyJsonToModel:
-        //TODO: modify String of current page
-        document.applyJsonToModel();
+        try {
+          document.editJson(message);
+          document.applyJsonToModel();
+        } catch (e) {
+          Balloon.error('invalid request', false);
+        }
         return;
       case MessageDefs.getCustomOpAttrT:
         document.setCustomOpAttrT(message);
