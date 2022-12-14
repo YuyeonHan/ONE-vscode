@@ -68,6 +68,46 @@ class JsonModel {
       }
     }
   }
+
+  updateOption (data: string) {
+    this.option = data;
+  }
+
+  updateSubgraph(action: jsonAction, index: number, data?: string) {
+    try {
+      switch (action) {
+        case jsonAction.INSERT:
+          this.subgraph.splice(index, 0, data!);
+          break;
+        case jsonAction.REPLACE:
+          this.subgraph[index] = data!;
+          break;
+        case jsonAction.REMOVE:
+          this.subgraph.splice(index, 1);
+          break;
+      }
+    } catch (e) {
+      throw new Error();
+    }
+  }
+
+  updateBuffers(action: jsonAction, index: number, page: number, data?: string) {
+    try {
+      switch (action) {
+        case jsonAction.INSERT:
+          this.buffers.splice(index, 0, [[]]);
+          break;
+        case jsonAction.REPLACE:
+          this.buffers[index][page-1] = data!.split(",").map(n => JSON.parse(n));
+          break;
+        case jsonAction.REMOVE:
+          this.buffers.splice(index, 1);
+          break;
+      }
+    } catch (e) {
+      throw new Error();
+    }
+  }
 }
 
 /**
