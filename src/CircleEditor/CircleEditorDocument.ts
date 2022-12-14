@@ -130,7 +130,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
   private readonly _uri: vscode.Uri;
   private _model: Circle.ModelT;
   private readonly packetSize = 1024 * 1024 * 1024;
-  private jsonModel?: JsonModel;
+  private _jsonModel?: JsonModel;
 
   public get uri(): vscode.Uri {
     return this._uri;
@@ -479,7 +479,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     const oldModelData = this.modelData;
     try{
       // Option: version, operatorCodes, description, metadataBuffer, metadata, signatureDefs
-      let option = JSON.parse(this.jsonModel!.option);
+      let option = JSON.parse(this._jsonModel!.option);
 
       this._model.version = option.version;
       this._model.operatorCodes = option.operatorCodes.map((data: Circle.OperatorCodeT) => {
@@ -501,7 +501,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       });
 
       // Subgraph
-      this._model.subgraphs = this.jsonModel!.subgraph.map((data: string) => {
+      this._model.subgraphs = this._jsonModel!.subgraph.map((data: string) => {
         let subgraph: Circle.SubGraphT = JSON.parse(data);
 
         // tensors
@@ -601,20 +601,24 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       });
 
       // Buffer
-      this._model.buffers = this.jsonModel!.buffers.map((data: number[][]) => {
+      this._model.buffers = this._jsonModel!.buffers.map((data: number[][]) => {
         let buffer: number[] = data.reduce((acc: number[], cur: number[]) => {
           return [...acc, ...cur];
         });
         return new Circle.BufferT(buffer);
       });
 
-      this.jsonModel = new JsonModel(this._model);
+      this._jsonModel = new JsonModel(this._model);
       const newModelData = this.modelData;
       this.notifyEdit(oldModelData, newModelData);
     } catch (e) {
       this._model = this.loadModel(oldModelData);
       Balloon.error('invalid model', false);
     }
+  }
+
+  initJsonModel() {
+    this._jsonModel = new JsonModel(this._model);
   }
 
   loadJsonModel(message: any) {
@@ -635,21 +639,21 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
 
   //TODO: trimString 하는 시점 정하기
   loadJsonModelOption() {
-    let option = this.trimString(this.jsonModel!.option);
+    let option = this.trimString(this._jsonModel!.option);
     this._onDidChangeContent.fire({command: 'loadJson', type: 'options', data: option});
   }
 
   loadJsonModelSubgraph(currentIdx: any) {
-    if(this.jsonModel!.subgraph.length <= currentIdx){
+    if(this._jsonModel!.subgraph.length <= currentIdx){
       Balloon.error('subgraph index out of range', false);
       return;
     }
 
-    let subgraph = this.trimString(this.jsonModel!.subgraph[currentIdx]);
+    let subgraph = this.trimString(this._jsonModel!.subgraph[currentIdx]);
     this._onDidChangeContent.fire({
       command: 'loadJson',
       type: 'subgraphs',
-      totalSubgraph: this.jsonModel!.subgraph.length,
+      totalSubgraph: this._jsonModel!.subgraph.length,
       currentIdx,
       data: subgraph,
     });
@@ -657,18 +661,18 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
 
   loadJsonModelBuffer(currentIdx:any, pageIdx: any){
     pageIdx--; // array index starts from 0
-    if(this.jsonModel!.buffers.length <= currentIdx || this.jsonModel!.buffers[currentIdx].length <= pageIdx){
+    if(this._jsonModel!.buffers.length <= currentIdx || this._jsonModel!.buffers[currentIdx].length <= pageIdx){
       Balloon.error('buffer or page index out of range.', false);
       return;
     }
-    const data = JSON.stringify(this.jsonModel!.buffers[currentIdx][pageIdx]).replace('[', '').replace(']', '').trim();
+    const data = JSON.stringify(this._jsonModel!.buffers[currentIdx][pageIdx]).replace('[', '').replace(']', '').trim();
     this._onDidChangeContent.fire({
       command: 'loadJson',
       type: 'buffers',
       currentIdx,
       pageIdx: pageIdx+1,
-      totalBuffer: this.jsonModel!.buffers.length,
-      totalPage: this.jsonModel!.buffers[currentIdx].length,
+      totalBuffer: this._jsonModel!.buffers.length,
+      totalPage: this._jsonModel!.buffers[currentIdx].length,
       data
     });
   }
@@ -694,11 +698,11 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
     } = message.updateParams;
     
     if(target === 'options') {
-      this.jsonModel?.updateOption(data);
+      this._jsonModel?.updateOption(data);
     }else if(target === 'subgraphs') {
-      this.jsonModel?.updateSubgraph(action, index, data);
+      this._jsonModel?.updateSubgraph(action, index, data);
     }else if(target === 'buffers') {
-      this.jsonModel?.updateBuffers(action, index, page, data);
+      this._jsonModel?.updateBuffers(action, index, page, data);
     }
   }
 
