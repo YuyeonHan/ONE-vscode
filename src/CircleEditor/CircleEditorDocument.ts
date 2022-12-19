@@ -37,7 +37,7 @@ const enum jsonAction{
 class JsonModel {
   private _option: string;
   private _subgraph: string[];
-  private _buffers: number[][][];
+  private _buffers: Uint8Array[][];
   private readonly BUF_PAGE_SIZE: number = 300000;
 
   constructor(model: Circle.ModelT) {
@@ -63,7 +63,7 @@ class JsonModel {
       this._buffers.push([]);
       let buffer = [...model.buffers[i].data];
       while(buffer.length>0){
-        this._buffers[i].push(buffer.splice(0, this.BUF_PAGE_SIZE));
+        this._buffers[i].push(Uint8Array.from(buffer.splice(0, this.BUF_PAGE_SIZE)));
       }
     }
   }
@@ -74,7 +74,7 @@ class JsonModel {
   public get subgraph(): string[] {
     return this._subgraph;
   }
-  public get buffers(): number[][][] {
+  public get buffers(): Uint8Array[][] {
     return this._buffers;
   }
 
@@ -104,10 +104,10 @@ class JsonModel {
     try {
       switch (action) {
         case jsonAction.INSERT:
-          this._buffers.splice(index, 0, [[]]);
+          this._buffers.splice(index, 0, [new Uint8Array()]);
           break;
         case jsonAction.REPLACE:
-          this._buffers[index][page-1] = data!.split(",").map(n => JSON.parse(n));
+          this._buffers[index][page-1] = Uint8Array.from(data!.split(",").map(n => JSON.parse(n)));
           break;
         case jsonAction.REMOVE:
           this._buffers.splice(index, 1);
@@ -345,7 +345,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       Balloon.error('buffer or page index out of range.', false);
       return;
     }
-    const data = JSON.stringify(this._jsonModel!.buffers[currentIdx][pageIdx]).replace('[', '').replace(']', '').trim();
+    const data = JSON.stringify(Array.from(this._jsonModel!.buffers[currentIdx][pageIdx])).replace('[', '').replace(']', '').trim();
     this._onDidChangeContent.fire({
       command: 'loadJson',
       type: 'buffers',
@@ -512,11 +512,11 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       });
 
       // Buffer
-      this._model.buffers = this._jsonModel!.buffers.map((data: number[][]) => {
-        let buffer: number[] = data.reduce((acc: number[], cur: number[]) => {
-          return [...acc, ...cur];
+      this._model.buffers = this._jsonModel!.buffers.map((data: Uint8Array[]) => {
+        let buffer: Uint8Array = data.reduce((acc: Uint8Array, cur: Uint8Array) => {
+          return Uint8Array.from([...acc, ...cur]);
         });
-        return new Circle.BufferT(buffer);
+        return new Circle.BufferT(Array.from(buffer));
       });
 
       this._jsonModel = new JsonModel(this._model);
