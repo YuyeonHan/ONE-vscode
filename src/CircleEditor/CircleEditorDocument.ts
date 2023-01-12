@@ -58,9 +58,11 @@ class JsonModel {
     });
 
     // set buffer array
+    // originIdx means original buffer index from document._model
+    // array index means modified buffer index to be applied
     this._buffers = [];
     for (let i = 0; i < model.buffers.length; i++){
-      this._buffers.push({});
+      this._buffers.push({originIdx: i, totalPage: Math.max(1, Math.ceil(model.buffers[i].data.length/this.BUF_PAGE_SIZE))});
     }
   }
 
@@ -100,10 +102,11 @@ class JsonModel {
     try {
       switch (action) {
         case jsonAction.INSERT:
-          this._buffers.splice(index, 0, {});
+          this._buffers.splice(index, 0, {totalPage: 1});
           break;
         case jsonAction.REPLACE:
-          this._buffers[index][page-1] = Uint8Array.from(data!.split(",").map(n => JSON.parse(n)));
+          this._buffers[index][page] = Uint8Array.from(data!.split(",").map(n => JSON.parse(n)));
+          this._buffers[index].totalPage = Math.max(this._buffers[index].totalPage, page);
           break;
         case jsonAction.REMOVE:
           this._buffers.splice(index, 1);
@@ -336,26 +339,29 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
   }
 
   loadJsonModelBuffer(currentIdx:any, pageIdx: any){
-    pageIdx--; // array index starts from 0
-    const bufferArr = [...this._model.buffers[currentIdx].data];
-    const totalPage = Math.trunc(bufferArr.length / this._jsonModel!.BUF_PAGE_SIZE);
-    if(this._jsonModel!.buffers.length <= currentIdx || totalPage < pageIdx){
+    if(this._jsonModel!.buffers.length <= currentIdx || this._jsonModel!.buffers[currentIdx].totalPage < pageIdx){
       Balloon.error('buffer or page index out of range.', false);
       return;
     }
+    if(this._jsonModel!.buffers[currentIdx][pageIdx] == undefined && this._model.buffers.length <= currentIdx){
+      Balloon.error(`'this buffer do not have page ${pageIdx}'`, false);
+      return;
+    }
+    const totalPage = this._jsonModel!.buffers[currentIdx].totalPage;
     if (this._jsonModel!.buffers[currentIdx][pageIdx] == undefined) {
       const start = pageIdx * this._jsonModel!.BUF_PAGE_SIZE;
+      const bufferArr = [...this._model.buffers[currentIdx].data];
       const bufString = JSON.stringify(bufferArr.splice(start, this._jsonModel!.BUF_PAGE_SIZE)).replace('[', '').replace(']', '');
-      this._jsonModel!.updateBuffers(jsonAction.REPLACE, currentIdx, pageIdx+1, bufString);
+      this._jsonModel!.updateBuffers(jsonAction.REPLACE, currentIdx, pageIdx, bufString);
     }
     const data = JSON.stringify(Array.from(this._jsonModel!.buffers[currentIdx][pageIdx])).replace('[', '').replace(']', '').trim();
     this._onDidChangeContent.fire({
       command: 'loadJson',
       type: 'buffers',
       currentIdx,
-      pageIdx: pageIdx+1,
+      pageIdx: pageIdx,
       totalBuffer: this._jsonModel!.buffers.length,
-      totalPage: totalPage+1,
+      totalPage: totalPage,
       data
     });
   }
@@ -515,6 +521,7 @@ export class CircleEditorDocument extends Disposable implements vscode.CustomDoc
       });
 
       // Buffer
+      // TODO: 새 buffer 맞추어 리팩토링
       this._jsonModel!.buffers.map((data: object) => {
         Object.entries(data).sort((a, b) => {
           return parseInt(b[0]) - parseInt(a[0]);

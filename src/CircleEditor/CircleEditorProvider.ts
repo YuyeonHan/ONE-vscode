@@ -188,6 +188,7 @@ export class CircleEditorProvider implements vscode.CustomEditorProvider<CircleE
         try {
           document.editJson(message);
           document.applyJsonToModel();
+          //TODO: initJsonModel and loadJsonModelOption Again
         } catch (e) {
           Balloon.error('invalid request', false);
         }
